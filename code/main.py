@@ -21,6 +21,9 @@ class Game:
             Sprite((x * TILE_SIZE, y * TILE_SIZE), image, (self.all_sprites, self.collision_sprites))
         for x, y, image in tmx_map.get_layer_by_name('Decoration').tiles():
             Sprite((x * TILE_SIZE, y * TILE_SIZE), image, self.all_sprites)
+        for obj in tmx_map.get_layer_by_name('Entities'):
+            if obj.name == 'Player':
+                Player((obj.x, obj.y), self.all_sprites, self.collision_sprites)
 
     def run(self):
         while self.running:
