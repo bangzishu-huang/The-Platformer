@@ -20,6 +20,9 @@ POWERUPS = {
     'rapid_fire': {'label': 'RAPID FIRE', 'color': '#f5c98c'},
     'speed_boost': {'label': 'SPEED BOOST', 'color': '#a8d5a2'},
     'shield': {'label': 'SHIELD', 'color': '#9ec9e2'},
+    'piercing': {'label': 'PIERCING_SHOT', 'color': '#c9a8d5'},
+    'multi_shot': {'label': 'MULTI SHOT', 'color': '#a8c9d5'},
+    'score_x2': {'label': 'DOUBLE SCORE', 'color': '#f5e28c'}
 }
 POWERUP_DURATION = 20000
 LOTTERY_SPIN_TIME = 1500

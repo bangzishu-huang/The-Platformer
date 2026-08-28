@@ -32,10 +32,11 @@ class AnimatedSprite(Sprite):
         self.image = self.frames[int(self.frame_index) % len(self.frames)]
 
 class Player(AnimatedSprite):
-    def __init__(self, pos, groups, collision_sprites, frames, create_bullet):
+    def __init__(self, pos, groups, collision_sprites, frames, create_bullet, play_jump):
         super().__init__(frames, pos, groups)
         self.flip = False
         self.create_bullet = create_bullet
+        self.play_jump = play_jump
         self.direction = pygame.Vector2()
         self.collision_sprites = collision_sprites
         self.base_speed = 400
@@ -45,12 +46,15 @@ class Player(AnimatedSprite):
         self.base_shoot_delay = 500
         self.shoot_timer = Timer(self.base_shoot_delay)
         self.shield = False
+        self.piercing = False
+        self.multi_shot = False 
 
     def input(self):
         keys = pygame.key.get_pressed()
         self.direction.x = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
         if keys[pygame.K_UP] and self.on_floor:
             self.direction.y = -20
+            self.play_jump()
 
         if keys[pygame.K_SPACE] and not self.shoot_timer.active:
             self.create_bullet(self.rect.center, -1 if self.flip else 1)
@@ -102,11 +106,17 @@ class Player(AnimatedSprite):
             self.shoot_timer.duration = self.base_shoot_delay * 0.25
         elif name == 'shield':
             self.shield = True
+        elif name == 'piercing':
+            self.piercing = True
+        elif name == 'multi_shot':
+            self.multi_shot = True
 
     def clear_powerup(self):
         self.speed = self.base_speed
         self.shoot_timer.duration = self.base_shoot_delay
         self.shield = False
+        self.piercing = False 
+        self.multi_shot = False 
 
     def update(self, dt):
         self.shoot_timer.update()

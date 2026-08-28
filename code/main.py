@@ -18,6 +18,8 @@ class Game:
         self.bullet_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
 
+        self.score_multiplier = 1
+
         self.state = 'start'
         self.font = pygame.font.Font(join('code', 'data', 'graphics', 'font', 'font.ttf'), 50)
         self.small_font = pygame.font.Font(join('code', 'data', 'graphics', 'font', 'font.ttf'), 28)
@@ -68,7 +70,9 @@ class Game:
 
     def create_bullet(self, pos, direction):
         x = pos[0] + direction * 34 if direction == 1 else pos[0] + direction * 34 - self.bullet_surf.get_width()
-        Bullet(self.bullet_surf, (x, pos[1]), direction, (self.all_sprites, self.bullet_sprites))
+        y_offsets = (0, -22, 22) if self.player.multi_shot else (0,)
+        for y_offset in y_offsets:
+            Bullet(self.bullet_surf, (x, pos[1] + y_offset), direction, (self.all_sprites, self.bullet_sprites))
         Fire(self.fire_surf, pos, self.all_sprites, self.player)
         self.audio['shoot'].play()
 
@@ -95,7 +99,7 @@ class Game:
             Sprite((x * TILE_SIZE, y * TILE_SIZE), image, self.all_sprites)
         for obj in tmx_map.get_layer_by_name('Entities'):
             if obj.name == 'Player':
-                self.player = Player((obj.x, obj.y), self.all_sprites, self.collision_sprites, self.player_frames, self.create_bullet)
+                self.player = Player((obj.x, obj.y), self.all_sprites, self.collision_sprites, self.player_frames, self.create_bullet, self.audio['jump'].play)
             if obj.name == 'Worm':
                 self.worm_spawn_rects.append(pygame.FRect(obj.x, obj.y, obj.width, obj.height))
 
@@ -104,7 +108,8 @@ class Game:
             sprite_collsiion = pygame.sprite.spritecollide(bullet, self.enemy_sprites, False, pygame.sprite.collide_mask)
             if sprite_collsiion:
                 self.audio['impact'].play()
-                bullet.kill()
+                if not self.player.piercing:
+                    bullet.kill()
                 for sprite in sprite_collsiion:
                     sprite.destroy()
                     self.register_kill()
@@ -132,7 +137,7 @@ class Game:
         self.state = 'game_over'
 
     def register_kill(self):
-        self.score += 1
+        self.score += self.score_multiplier
         if self.score > self.high_score:
             self.high_score = self.score
 
@@ -150,6 +155,7 @@ class Game:
         self.lottery_active = True
         self.lottery_start = pygame.time.get_ticks()
         self.lottery_result = choice(list(POWERUPS.keys()))
+        self.audio['spin'].play()
 
     def update_lottery(self):
         if self.lottery_active and pygame.time.get_ticks() - self.lottery_start >= LOTTERY_SPIN_TIME:
@@ -157,8 +163,11 @@ class Game:
             self.apply_powerup(self.lottery_result)
 
     def apply_powerup(self, name):
-        self.active_powerup = name 
-        self.player.apply_powerup(name)
+        self.active_powerup = name
+        if name == 'score_x2':
+            self.score_multiplier = 2
+        else:
+            self.player.apply_powerup(name)
         self.powerup_timer.activate()
 
     def end_powerup(self):
@@ -175,12 +184,15 @@ class Game:
 
         self.score = 0
         self.combo = 0
+        self.score_multiplier = 1
         self.floating_text = []
         self.lottery_active = False
         self.active_powerup = None
         self.powerup_timer.deactivate()
         self.bee_timer = Timer(DIFFICULTIES[difficulty]['bee_interval'], func = self.create_bee, autostart=True, repeat=True)
         self.worm_timer = Timer(DIFFICULTIES[self.difficulty]['worm_interval'], func = self.create_worm, autostart=True, repeat=True)
+        for _ in range(len(self.worm_spawn_rects)):
+            self.create_worm()
         self.state = 'playing'
 
     def reset(self):
