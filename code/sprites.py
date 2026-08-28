@@ -38,11 +38,13 @@ class Player(AnimatedSprite):
         self.create_bullet = create_bullet
         self.direction = pygame.Vector2()
         self.collision_sprites = collision_sprites
-        self.speed = 400
+        self.base_speed = 400
+        self.speed = self.base_speed
         self.gravity = 50
         self.on_floor = False
-
-        self.shoot_timer = Timer(500)
+        self.base_shoot_delay = 500
+        self.shoot_timer = Timer(self.base_shoot_delay)
+        self.shield = False
 
     def input(self):
         keys = pygame.key.get_pressed()
@@ -74,6 +76,8 @@ class Player(AnimatedSprite):
                     if self.direction.y < 0: self.rect.top = sprite.rect.bottom
                 self.direction.y = 0
 
+    
+
     def check_floor(self):
         bottom_rect = pygame.FRect((0,0), (self.rect.width, 2)).move_to(midtop = self.rect.midbottom)
         self.on_floor = True if bottom_rect.collidelist([sprite.rect for sprite in self.collision_sprites]) >= 0 else False 
@@ -90,6 +94,19 @@ class Player(AnimatedSprite):
 
         self.image = self.frames[int(self.frame_index) % len(self.frames)]
         self.image = pygame.transform.flip(self.image, self.flip, False)
+
+    def apply_powerup(self, name):
+        if name == 'speed_boost':
+            self.speed = self.base_speed * 1.8
+        elif name == 'rapid_fire':
+            self.shoot_timer.duration = self.base_shoot_delay * 0.25
+        elif name == 'shield':
+            self.shield = True
+
+    def clear_powerup(self):
+        self.speed = self.base_speed
+        self.shoot_timer.duration = self.base_shoot_delay
+        self.shield = False
 
     def update(self, dt):
         self.shoot_timer.update()
@@ -133,11 +150,11 @@ class Bee(Enemy):
             self.kill()
 
 class Worm(Enemy):
-    def __init__(self, frames, rect, groups):
+    def __init__(self, frames, rect, groups, speed_mult = 1.0):
         super().__init__(frames, rect.topleft, groups)
         self.rect.bottomleft = rect.bottomleft
         self.main_rect = rect
-        self.speed = randint(160, 200)
+        self.speed = randint(160, 200) * speed_mult
         self.direction = 1
 
     def move(self, dt):
