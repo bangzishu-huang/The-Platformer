@@ -22,8 +22,11 @@ POWERUPS = {
     'shield': {'label': 'SHIELD', 'color': '#9ec9e2'},
     'piercing': {'label': 'PIERCING_SHOT', 'color': '#c9a8d5'},
     'multi_shot': {'label': 'MULTI SHOT', 'color': '#a8c9d5'},
-    'score_x2': {'label': 'DOUBLE SCORE', 'color': '#f5e28c'}
+    'score_x2': {'label': 'DOUBLE SCORE', 'color': '#f5e28c'},
+    'double_jump': {'label': 'DOUBLE JUMP', 'color': '#b5d5a8'},
+    'freeze_enemies': {'label': 'FREEZE ENEMIES', 'color': '#a8c9e8'},
+    'mega_bullet': {'label': 'MEGA_BULLET', 'color': '#e8b8a8'},
 }
 POWERUP_DURATION = 20000
 LOTTERY_SPIN_TIME = 1500
-KILLS_PER_LOTTERY = 10
+KILLS_PER_LOTTERY = 5

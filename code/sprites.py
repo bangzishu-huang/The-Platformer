@@ -48,13 +48,27 @@ class Player(AnimatedSprite):
         self.shield = False
         self.piercing = False
         self.multi_shot = False 
+        self.double_jump = False
+        self.jumps_used = 0
+        self.jump_held = False
+        self.mega_bullets = False
+        self.no_clip = False
+        self.infinite_ammo = False
 
     def input(self):
         keys = pygame.key.get_pressed()
         self.direction.x = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
-        if keys[pygame.K_UP] and self.on_floor:
-            self.direction.y = -20
-            self.play_jump()
+
+        jump_key = keys[pygame.K_UP]
+        if jump_key and not self.jump_held:
+            if self.on_floor or self.no_clip: 
+                self.jumps_used = 0
+            max_jumps = 2 if self.double_jump else 1
+            if self.jumps_used < max_jumps:
+                self.direction.y = -20
+                self.jumps_used += 1
+                self.play_jump()
+        self.jump_held = jump_key
 
         if keys[pygame.K_SPACE] and not self.shoot_timer.active:
             self.create_bullet(self.rect.center, -1 if self.flip else 1)
@@ -70,6 +84,8 @@ class Player(AnimatedSprite):
         self.collision('vertical')
 
     def collision(self, direction):
+        if self.no_clip:
+            return 
         for sprite in self.collision_sprites:
             if sprite.rect.colliderect(self.rect):
                 if direction == 'horizontal':
@@ -110,6 +126,10 @@ class Player(AnimatedSprite):
             self.piercing = True
         elif name == 'multi_shot':
             self.multi_shot = True
+        elif name == 'double_jump':
+            self.double_jump = True
+        elif name == 'mega_bullet':
+            self.mega_bullets = True
 
     def clear_powerup(self):
         self.speed = self.base_speed
@@ -117,6 +137,29 @@ class Player(AnimatedSprite):
         self.shield = False
         self.piercing = False 
         self.multi_shot = False 
+        self.double_jump = False
+        self.jumps_used = 0
+        self.mega_bullets = False
+        self.no_clip = False
+        self.infinite_ammo = False 
+
+    def set_ability(self, name, enabled):
+        if name == 'speed_boost':
+            self.speed = self.base_speed * 1.8 if enabled else self.base_speed
+        elif name == 'rapid_fire':
+            self.shoot_timer.duration = self.base_shoot_delay * 0.25 if enabled else self.base_shoot_delay
+        elif name == 'shield':
+            self.shield = enabled
+        elif name == 'piercing':
+            self.piercing = enabled 
+        elif name == 'multi_shot':
+            self.multi_shot = enabled
+        elif name == 'double_jump':
+            self.double_jump = enabled
+            if not enabled:
+                self.jumps_used = 0
+        elif name == 'mega_bullet':
+            self.mega_bullets = enabled
 
     def update(self, dt):
         self.shoot_timer.update()

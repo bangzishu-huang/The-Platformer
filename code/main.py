@@ -48,6 +48,30 @@ class Game:
 
         self.difficulty = 'medium'
 
+        self.hack_menu_open = False
+        self.enemies_frozen = False 
+        self.hack_abilities = {name: False for name in POWERUPS}
+        self.cheats = {'god_mode': False, 'esp': False, 'no_clip': False, 'infinite_ammo': False}
+
+        names = list(POWERUPS.keys())
+        cell_w, cell_h = 260, 90
+        grid_w = 3 * cell_w 
+        start_x = WINDOW_WIDTH / 2 - grid_w / 2
+        start_y = 150
+        self.hack_ability_buttons = {}
+        for i, name in enumerate(names):
+            col, row = i % 3, i // 3
+            rect = pygame.Rect(start_x + col * cell_w, start_y + row * cell_h, cell_w - 10, cell_h - 10)
+            self.hack_ability_buttons[name] = rect
+
+        cheat_names = list(self.cheats.keys())
+        cheat_y = start_y + 3 * cell_h + 40
+        self.hack_cheat_buttons = {}
+        for i, name in enumerate(cheat_names):
+            rect = pygame.Rect(0, 0, 260, 70)
+            rect.center = (WINDOW_WIDTH / 2 - 420 + i * 280, cheat_y)
+            self.hack_cheat_buttons[name] = rect
+
         self.load_assets()  
         self.setup()
         self.audio['music'].play(loops = -1)
@@ -69,16 +93,18 @@ class Game:
             Worm(self.worm_frames, rect, (self.all_sprites, self.enemy_sprites), speed_mult = DIFFICULTIES[self.difficulty]['worm_speed_mult'])
 
     def create_bullet(self, pos, direction):
+        bullet_surf = self.mega_bullet_surf if self.player.mega_bullets else self.bullet_surf
         x = pos[0] + direction * 34 if direction == 1 else pos[0] + direction * 34 - self.bullet_surf.get_width()
         y_offsets = (0, -22, 22) if self.player.multi_shot else (0,)
         for y_offset in y_offsets:
-            Bullet(self.bullet_surf, (x, pos[1] + y_offset), direction, (self.all_sprites, self.bullet_sprites))
+            Bullet(bullet_surf, (x, pos[1] + y_offset), direction, (self.all_sprites, self.bullet_sprites))
         Fire(self.fire_surf, pos, self.all_sprites, self.player)
         self.audio['shoot'].play()
 
     def load_assets(self):
         self.player_frames = import_folder('code', 'images', 'player')
         self.bullet_surf = import_image('code', 'images', 'gun', 'bullet')
+        self.mega_bullet_surf = pygame.transform.scale_by(self.bullet_surf, 1.8)
         self.fire_surf = import_image('code', 'images', 'gun', 'fire')
         self.bee_frames = import_folder('code', 'images', 'enemies', 'bee')
         self.worm_frames = import_folder('code', 'images', 'enemies', 'worm')
@@ -103,6 +129,8 @@ class Game:
             if obj.name == 'Worm':
                 self.worm_spawn_rects.append(pygame.FRect(obj.x, obj.y, obj.width, obj.height))
 
+        self.reapply_hack_abilities()
+
     def collision(self):
         for bullet in self.bullet_sprites:
             sprite_collsiion = pygame.sprite.spritecollide(bullet, self.enemy_sprites, False, pygame.sprite.collide_mask)
@@ -111,9 +139,10 @@ class Game:
                 if not self.player.piercing:
                     bullet.kill()
                 for sprite in sprite_collsiion:
-                    sprite.destroy()
-                    self.register_kill()
-        if not self.player.shield and pygame.sprite.spritecollide(self.player, self.enemy_sprites, False, pygame.sprite.collide_mask):
+                    if not sprite.death_timer.active:
+                        sprite.destroy()
+                        self.register_kill()
+        if not self.cheats['god_mode'] and not self.player.shield and pygame.sprite.spritecollide(self.player, self.enemy_sprites, False, pygame.sprite.collide_mask):
             self.trigger_game_over()
 
         if self.player.rect.top > self.level_height + 350:
@@ -141,6 +170,9 @@ class Game:
         if self.score > self.high_score:
             self.high_score = self.score
 
+        if any(self.hack_abilities.values()) or any(self.cheats.values()):
+            return
+
         self.combo += 1
         self.spawn_floating_text(f'x{self.combo}')
         if self.combo >= KILLS_PER_LOTTERY:
@@ -166,13 +198,47 @@ class Game:
         self.active_powerup = name
         if name == 'score_x2':
             self.score_multiplier = 2
+        elif name == 'freeze_enemies':
+            self.enemies_frozen = True
         else:
             self.player.apply_powerup(name)
         self.powerup_timer.activate()
 
     def end_powerup(self):
-        self.player.clear_powerup()
+        if self.active_powerup == 'score_x2':
+            self.score_multiplier = 1
+        elif self.active_powerup == 'freeze_enemies':
+            self.enemies_frozen = False
+        else:
+            self.player.clear_powerup()
         self.active_powerup = None
+        self.reapply_hack_abilities()
+
+    def toggle_hack_game_ability(self, name):
+        enabled = self.hack_abilities[name]
+        if name == 'score_x2':
+            self.score_multiplier = 2 if enabled else 1
+        elif name == 'freeze_enemies':
+            self.enemies_frozen = enabled 
+
+    def apply_cheat(self, name):
+        if name == 'no_clip':
+            self.player.no_clip = self.cheats['no_clip']
+        elif name == 'infinite_ammo':
+            self.player.infinite_ammo = self.cheats['infinite_ammo']
+
+    def reapply_hack_abilities(self):
+        for name, enabled in self.hack_abilities.items():
+            if not enabled:
+                continue
+            if name == 'score_x2':
+                self.score_multiplier = 2
+            elif name =='freeze_enemies':
+                self.enemies_frozen = True
+            else:
+                self.player.set_ability(name, True)
+        self.player.no_clip = self.cheats['no_clip']
+        self.player.infinite_ammo = self.cheats['infinite_ammo']
 
     def start_game(self, difficulty):
         self.difficulty = difficulty
@@ -196,7 +262,7 @@ class Game:
         self.state = 'playing'
 
     def reset(self):
-        self.start_game(self.difficulty)
+        self.state = 'difficulty'
 
     def display_start_screen(self):
         overlay = pygame.Surface((WINDOW_HEIGHT, WINDOW_HEIGHT), pygame.SRCALPHA)
@@ -237,6 +303,11 @@ class Game:
             label_rect = label_surf.get_frect(center = rect.center)
             self.display_surface.blit(label_surf, label_rect)
 
+        last_button = list(self.difficulty_buttons.values())[-1]
+        hack_hint_surf = self.small_font.render('Press H for Hack Mode', False, '#ff2ec4')
+        hack_hint_rect = hack_hint_surf.get_frect(center = (WINDOW_WIDTH / 2, last_button.bottom + 40))
+        self.display_surface.blit(hack_hint_surf, hack_hint_rect)
+
     def display_hud(self):
         score_surf = self.small_font.render(f'Score: {self.score}', False, 'black')
         self.display_surface.blit(score_surf, (20, 20))
@@ -258,7 +329,7 @@ class Game:
         for t in self.floating_text:
             progress = (now - t['start']) / t['duration']
             pop_in = min(1, progress / 0.15)
-            scale = (0.5 + 0.5 * pop_in) * (1 + progress * 0.6)
+            scale = (0.5 + 0.5 * pop_in) * (1 + progress * 1.6)
             alpha = 255 if progress < 0.5 else max(0, int(255 * (1 - (progress - 0.5) / 0.5)))
 
             base_surf = self.combo_font.render(t['text'], False, 'white').convert_alpha()
@@ -291,6 +362,49 @@ class Game:
         label_rect = label_surf.get_frect(center = box.center)
         self.display_surface.blit(label_surf, label_rect)
 
+    def display_esp_overlay(self):
+        offset = self.all_sprites.offset
+        for enemy in self.enemy_sprites:
+            pos = enemy.rect.center + offset
+            radius = max(enemy.rect.width, enemy.rect.height) / 2 + 10
+            pygame.draw.circle(self.display_surface, '#ff2ec4', pos, radius, 3)
+
+    def display_hack_menu(self):
+        overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        self.display_surface.blit(overlay, (0, 0))
+
+        title_surf = self.font.render('HACK MODE', False, '#ff2ec4')
+        title_rect = title_surf.get_frect(center = (WINDOW_WIDTH / 2, 80))
+        self.display_surface.blit(title_surf, title_rect)
+
+        disclaimer_surf = self.small_font.render('Note: enabling any hack disables the kill combo / lottery', False, 'white')
+        disclaimer_rect = disclaimer_surf.get_frect(center = (WINDOW_WIDTH / 2, 115))
+        self.display_surface.blit(disclaimer_surf, disclaimer_rect)
+
+        for name, rect in self.hack_ability_buttons.items():
+            info = POWERUPS[name]
+            enabled = self.hack_abilities[name]
+            pygame.draw.rect(self.display_surface, info['color'] if enabled else '#3a3a3a', rect, 0, 8)
+            pygame.draw.rect(self.display_surface, 'white', rect, 3, 8)
+            label_surf = self.small_font.render(info['label'], False, 'black' if enabled else 'white')
+            label_rect = label_surf.get_frect(center = (rect.centerx, rect.centery - 12))
+            self.display_surface.blit(label_surf, label_rect)
+            status_surf = self.small_font.render('ON' if enabled else 'OFF', False, 'black' if enabled else 'white')
+            status_rect = status_surf.get_frect(center = (rect.centerx, rect.centery + 18))
+            self.display_surface.blit(status_surf, status_rect)
+        for name, rect in self.hack_cheat_buttons.items():
+            enabled = self.cheats[name]
+            pygame.draw.rect(self.display_surface, '#ff2ec4' if enabled else '#3a3a3a', rect, 0, 8)
+            pygame.draw.rect(self.display_surface, 'white', rect, 3, 8)
+            label_surf = self.small_font.render(name.replace('_', ' ').upper(), False, 'black' if enabled else 'white')
+            label_rect = label_surf.get_frect(center = rect.center)
+            self.display_surface.blit(label_surf, label_rect)
+
+        hint_surf = self.small_font.render('Press H to close', False, 'white')
+        hint_rect = hint_surf.get_frect(center = (WINDOW_WIDTH / 2, WINDOW_HEIGHT - 40))
+        self.display_surface.blit(hint_surf, hint_rect)
+        
 
     def display_game_over(self):
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
@@ -327,8 +441,23 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                    self.hack_menu_open = not self.hack_menu_open
+
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if self.state == 'start' and self.button_rect.collidepoint(event.pos):
+                    if self.hack_menu_open:
+                        for name, rect in self.hack_ability_buttons.items():
+                            if rect.collidepoint(event.pos):
+                                self.hack_abilities[name] = not self.hack_abilities[name]
+                                if name in ('score_x2', 'freeze_enemies'):
+                                    self.toggle_hack_game_ability(name)
+                                else:
+                                    self.player.set_ability(name, self.hack_abilities[name])
+                        for name, rect in self.hack_cheat_buttons.items():
+                            if rect.collidepoint(event.pos):
+                                self.cheats[name] = not self.cheats[name]
+                                self.apply_cheat(name)
+                    elif self.state == 'start' and self.button_rect.collidepoint(event.pos):
                         self.state = 'difficulty'
 
                     elif self.state == 'difficulty':
@@ -340,17 +469,22 @@ class Game:
                     elif self.state == 'game_over' and self.button_rect.collidepoint(event.pos):
                         self.reset()
 
-            if self.state == 'playing':
+            if self.state == 'playing' and not self.hack_menu_open:
                 self.bee_timer.update()
                 self.worm_timer.update()
                 self.powerup_timer.update()
                 self.update_lottery()
-                self.all_sprites.update(dt)
+                for sprite in self.all_sprites:
+                    if self.enemies_frozen and sprite in self.enemy_sprites and not sprite.death_timer.active:
+                        continue
+                    sprite.update(dt)
                 self.collision()
 
             self.display_surface.fill(BG_COLOR)
             if self.state in ('playing', 'game_over'):
                 self.all_sprites.draw(self.player.rect.center)
+                if self.cheats['esp'] and self.state == 'playing':
+                    self.display_esp_overlay()
 
             if self.state == 'playing':
                 self.display_hud()
@@ -363,6 +497,9 @@ class Game:
                 self.display_start_screen()
             elif self.state == 'difficulty':
                 self.display_difficulty_screen()
+
+            if self.hack_menu_open:
+                self.display_hack_menu()
 
             pygame.display.update()
 
