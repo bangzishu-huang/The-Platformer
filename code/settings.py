@@ -8,7 +8,8 @@ TILE_SIZE = 64
 FRAMERATE = 60
 BG_COLOR = "#ffd9c0"
 
-HIGHSCORE_FILE = join('code', 'data', 'highscore.txt')
+import sys
+HIGHSCORE_FILE = join('data', 'highscore.txt') if sys.platform != 'emscripten' else join('data', 'highscore.txt')
 DIFFICULTIES = {
     'easy': {'label': 'EASY', 'color': '#a8d5a2', 'bee_interval': 900, 'bee_speed': (200, 300), 'worm_speed_mult': 0.8, 'worm_interval': 4000},
     'medium': {'label': 'MEDIUM', 'color': '#f5c98c', 'bee_interval': 600, 'bee_speed': (300, 450), 'worm_speed_mult': 1.0, 'worm_interval': 3000},

@@ -1,3 +1,10 @@
+# /// script
+# dependencies = [
+#     "pygame-ce",
+#     "pytmx",
+# ]
+# ///
+
 from settings import *
 from sprites import *
 from groups import AllSprites
@@ -5,6 +12,9 @@ from support import *
 from timed import Timer
 from random import randint, choice
 import asyncio
+import sys
+
+BASE = "" if sys.platform == "emscripten" else "code"
 
 class Game:
     def __init__(self):
@@ -22,9 +32,9 @@ class Game:
         self.score_multiplier = 1
 
         self.state = 'start'
-        self.font = pygame.font.Font(join('code', 'data', 'graphics', 'font', 'font.ttf'), 50)
-        self.small_font = pygame.font.Font(join('code', 'data', 'graphics', 'font', 'font.ttf'), 28)
-        self.combo_font = pygame.font.Font(join('code', 'data', 'graphics', 'font', 'font.ttf'), 34)
+        self.font = pygame.font.Font(join(*[p for p in [BASE, 'data', 'graphics', 'font', 'font.ttf'] if p]), 50)
+        self.small_font = pygame.font.Font(join(*[p for p in [BASE, 'data', 'graphics', 'font', 'font.ttf'] if p]), 28)
+        self.combo_font = pygame.font.Font(join(*[p for p in [BASE, 'data', 'graphics', 'font', 'font.ttf'] if p]), 34)
         self.combo_font.set_bold(True)
 
         self.button_rect = pygame.Rect(0, 0, 220, 70)
@@ -73,10 +83,7 @@ class Game:
             rect.center = (WINDOW_WIDTH / 2 - 420 + i * 280, cheat_y)
             self.hack_cheat_buttons[name] = rect
 
-        self.load_assets()  
-        self.setup()
-        self.audio['music'].play(loops = -1)
-        self.bee_timer = Timer(DIFFICULTIES[self.difficulty]['bee_interval'], func = self.create_bee, autostart = True, repeat = True)
+        self.bee_timer = None  # initialized in run() after assets load
 
     def create_bee(self):
         bee_speed_range = DIFFICULTIES[self.difficulty]['bee_speed']
@@ -103,17 +110,17 @@ class Game:
         self.audio['shoot'].play()
 
     def load_assets(self):
-        self.player_frames = import_folder('code', 'images', 'player')
-        self.bullet_surf = import_image('code', 'images', 'gun', 'bullet')
+        self.player_frames = import_folder(*[p for p in [BASE, 'images', 'player'] if p])
+        self.bullet_surf = import_image(*[p for p in [BASE, 'images', 'gun', 'bullet'] if p])
         self.mega_bullet_surf = pygame.transform.scale_by(self.bullet_surf, 1.8)
-        self.fire_surf = import_image('code', 'images', 'gun', 'fire')
-        self.bee_frames = import_folder('code', 'images', 'enemies', 'bee')
-        self.worm_frames = import_folder('code', 'images', 'enemies', 'worm')
+        self.fire_surf = import_image(*[p for p in [BASE, 'images', 'gun', 'fire'] if p])
+        self.bee_frames = import_folder(*[p for p in [BASE, 'images', 'enemies', 'bee'] if p])
+        self.worm_frames = import_folder(*[p for p in [BASE, 'images', 'enemies', 'worm'] if p])
 
-        self.audio = audio_import('code', 'audio')
+        self.audio = audio_import(*[p for p in [BASE, 'audio'] if p])
 
     def setup(self):
-        tmx_map = load_pygame(join('code', 'data', 'maps', 'world.tmx'))
+        tmx_map = load_pygame(join(*[p for p in [BASE, 'data', 'maps', 'world.tmx'] if p]))
 
         self.level_width = tmx_map.width * TILE_SIZE
         self.level_height = tmx_map.height * TILE_SIZE
@@ -435,6 +442,10 @@ class Game:
         self.display_surface.blit(replay_surf, replay_rect)
 
     async def run(self):
+        self.load_assets()
+        self.setup()
+        self.audio['music'].play(loops = -1)
+        self.bee_timer = Timer(DIFFICULTIES[self.difficulty]['bee_interval'], func = self.create_bee, autostart = True, repeat = True)
         while self.running:
             dt = self.clock.tick(FRAMERATE) / 1000
 
@@ -503,6 +514,7 @@ class Game:
                 self.display_hack_menu()
 
             pygame.display.update()
+            await asyncio.sleep(0)
 
         pygame.quit()
 
