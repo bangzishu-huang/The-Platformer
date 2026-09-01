@@ -4,6 +4,7 @@ from groups import AllSprites
 from support import *
 from timed import Timer
 from random import randint, choice
+import asyncio
 
 class Game:
     def __init__(self):
@@ -433,7 +434,7 @@ class Game:
         replay_rect = replay_surf.get_frect(center = self.button_rect.center)
         self.display_surface.blit(replay_surf, replay_rect)
 
-    def run(self):
+    async def run(self):
         while self.running:
             dt = self.clock.tick(FRAMERATE) / 1000
 
@@ -507,4 +508,4 @@ class Game:
 
 if __name__ == '__main__':
     game = Game()
-    game.run()
+    asyncio.run(game.run())
