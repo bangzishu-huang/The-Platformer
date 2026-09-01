@@ -32,4 +32,4 @@ jobs:
         with:
 
           folder: code/build/web
-          branch: main
+          branch: gh-pages
