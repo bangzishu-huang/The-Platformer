@@ -25,7 +25,7 @@ jobs:
 
         working-directory: ./code
         run: |
-          python -m pygbag --build .
+          python -m pygbag --build --disable-sound-format-error .
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
